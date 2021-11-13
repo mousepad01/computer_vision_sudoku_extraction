@@ -19,16 +19,25 @@ def show_images(images):
     cv.waitKey(0)
     cv.destroyAllWindows()
 
-def get_img(img_i):
+def get_img(img_i, jigsaw = False):
 
     imgname = img_i
     if img_i < 10:
         imgname = f"0{img_i}"
 
-    img = cv.imread(f"antrenare/clasic/{imgname}.jpg")
-    img = cv.resize(img, (0, 0), fx = 0.2, fy = 0.2)
+    if jigsaw is False:
 
-    return img
+        img = cv.imread(f"antrenare/clasic/{imgname}.jpg")
+        img = cv.resize(img, (0, 0), fx = 0.2, fy = 0.2)
+
+        return img
+
+    else:
+
+        img = cv.imread(f"antrenare/jigsaw/{imgname}.jpg")
+        img = cv.resize(img, (0, 0), fx = 0.2, fy = 0.2)
+
+        return img
 
 def save_mat_s1(img_i, m, digits = False):
 
@@ -113,9 +122,9 @@ def find_corners(image, show = False):
     
     return top_left, top_right, bottom_left, bottom_right
 
-def get_center(img_i, show = False):
+def get_center(img_i, show = False, jigsaw = False):
 
-    img = get_img(img_i)
+    img = get_img(img_i, jigsaw)
     tl, tr, _, _ = find_corners(img, show)
 
     if show:
@@ -335,6 +344,209 @@ def check_task_1():
 
     return ok, ok_digit
 
+def _get_border_samples():
+
+    img = get_center(1, show = False, jigsaw = True)
+    img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+
+    #show_image(img)
+
+    image_m_blur = cv.medianBlur(img, 7)
+    image_g_blur = cv.GaussianBlur(image_m_blur, (0, 0), 11) 
+    image_sharpened = cv.addWeighted(image_m_blur, 1.5, image_g_blur, -1, 0)
+    _, thresh = cv.threshold(image_sharpened, 15, 255, cv.THRESH_BINARY)
+
+    kernel = np.ones((5, 5), np.uint8)
+    thresh = cv.erode(thresh, kernel)
+
+    edges =  cv.Canny(thresh, 150, 400)
+    edges = cv.cvtColor(edges, cv.COLOR_GRAY2RGB)
+
+    l = img.shape[0]
+    chunk_l = l // 9
+
+    upedge = edges[int(4.1 * chunk_l): int(4.8 * chunk_l), int(6.7 * chunk_l): int(7.3 * chunk_l), :]
+    lowedge = edges[int(0.7 * chunk_l): int(1.3 * chunk_l), int(1.1 * chunk_l): int(1.8 * chunk_l), :]
+
+    upedge = cv.GaussianBlur(upedge, (0, 0), 3)
+    lowedge = cv.GaussianBlur(lowedge, (0, 0), 3)
+
+    upedge *= 2
+    lowedge *= 2
+
+    cv.imwrite("up_edge.jpg", upedge)
+    cv.imwrite("low_edge.jpg", lowedge)
+
+def get_borders(img):
+
+    img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+
+    l = img.shape[0]
+    chunk_l = l // 9
+
+    image_m_blur = cv.medianBlur(img, 7)
+    image_g_blur = cv.GaussianBlur(image_m_blur, (0, 0), 11) 
+    image_sharpened = cv.addWeighted(image_m_blur, 1.5, image_g_blur, -1, 0)
+    _, thresh = cv.threshold(image_sharpened, 15, 255, cv.THRESH_BINARY)
+
+    kernel = np.ones((5, 5), np.uint8)
+    thresh = cv.erode(thresh, kernel)
+    edges =  cv.Canny(thresh, 150, 400)
+
+    horizontal_border = cv.imread("low_edge.jpg")
+    horizontal_border = cv.cvtColor(horizontal_border, cv.COLOR_BGR2GRAY)
+    horizontal_border = cv.resize(horizontal_border, (int(0.7 * chunk_l), int(0.6 * chunk_l)))
+
+    vertical_border = cv.imread("up_edge.jpg")
+    vertical_border = cv.cvtColor(vertical_border, cv.COLOR_BGR2GRAY)
+    vertical_border = cv.resize(vertical_border, (int(0.6 * chunk_l), int(0.7 * chunk_l)))
+    
+    def _check_horizontal_border(chunk):
+        
+        match = cv.matchTemplate(chunk, horizontal_border, cv.TM_CCORR)
+        minval, _, _, _ = cv.minMaxLoc(match)
+        
+        # empirically-determined expression
+        if minval >= 100:
+            return True
+
+        return False
+
+    def _check_vertical_border(chunk):
+        
+        match = cv.matchTemplate(chunk, vertical_border, cv.TM_CCORR)
+        minval, _, _, _ = cv.minMaxLoc(match)
+
+        # empirically-determined expression
+        if minval >= 100:
+            return True
+
+        return False
+
+    # chunk_border[i][j] = [border UP, border, DOWN, border LEFT, border RIGHT]
+    chunk_border = [[[False, False, False, False] for _ in range(9)] for _ in range(9)]
+
+    for k in range(9):
+
+        chunk_border[0][k][0] = True
+        chunk_border[8][k][1] = True
+        chunk_border[k][0][2] = True
+        chunk_border[k][8][3] = True
+
+    # horizontal borders
+
+    for i in range(9 - 1):
+        for j in range(9):
+
+            off_i = i
+            off_j = j
+
+            chunk = edges[i * chunk_l + off_i + chunk_l // 2: (i + 1) * chunk_l + off_i + chunk_l // 2,
+                            j * chunk_l + off_j: (j + 1) * chunk_l + off_j]
+
+            is_border = _check_horizontal_border(chunk)
+            if is_border:
+
+                chunk_border[i][j][1] = True
+                chunk_border[i + 1][j][0] = True
+
+
+    # vertical borders
+
+    for i in range(9):
+        for j in range(9 - 1):
+
+            off_i = i
+            off_j = j
+
+            chunk = edges[i * chunk_l + off_i: (i + 1) * chunk_l + off_i,
+                            j * chunk_l + off_j + chunk_l // 2: (j + 1) * chunk_l + off_j + chunk_l // 2]
+
+            is_border = _check_vertical_border(chunk)
+            if is_border:
+                
+                chunk_border[i][j][3] = True
+                chunk_border[i][j + 1][2] = True
+
+    return chunk_border
+
+def fill_regions(chunk_borders):
+
+    # region_matrix[i][j] - region_number
+    region_matrix = [[0 for _ in range(9)] for _ in range(9)]
+
+    u = [0, -1, 0, 1]
+    v = [1, 0, -1, 0]
+    b = [3, 0, 2, 1]
+
+    def _fill(i, j, reg):
+
+        nonlocal region_matrix
+
+        region_matrix[i][j] = reg
+
+        for mov in range(4):
+
+            i_ = i + u[mov]
+            j_ = j + v[mov]
+
+            if (0 < i_ < 9) and (0 < j_ < 9) and (region_matrix[i_][j_] == 0) and (chunk_borders[i][j][b[mov]] is False):
+                print("HERE")
+                _fill(i_, j_, reg)
+
+    next_region = 1
+
+    for i in range(9):
+        for j in range(9):
+            
+            if region_matrix[i][j] == 0:
+
+                _fill(i, j, next_region)
+                next_region += 1
+
+    return region_matrix
+
+def check_regions(region_matrix, img_i):
+
+    fname = img_i
+    if img_i < 10:
+        fname = f"0{img_i}"
+
+    fname = f"{fname}_gt.txt"
+
+    f = open(f"antrenare/jigsaw/{fname}")
+    reg_org = f.read().split()
+    f.close()
+
+    for i in range(9):
+        reg_org[i] = [(ord(c) - ord('0')) for c in reg_org[i][::2]]
+
+    for i in range(9):
+            print(region_matrix[i])
+    print()
+
+    for i in range(9):
+            print(reg_org[i])
+
+    for i in range(9):
+        for j in range(9):
+
+            if reg_org[i][j] != region_matrix[i][j]:
+                return False
+
+    return True
+
+def solve_task_2(img_i, identify_digits = False, show = False):
+
+    img = get_center(img_i, show = show, jigsaw = True)
+
+    region_matrix = fill_regions(get_borders(img))
+
+    print(check_regions(region_matrix, img_i))
+    show_image(img)
+
+    return None
+
 if __name__ == "__main__":
     
     IMG_CNT = 20
@@ -347,3 +559,10 @@ if __name__ == "__main__":
         save_mat_s1(i, m_d, True)
 
     check_task_1()
+
+    '''J_IMG_CNT = 40
+    for i in range(1, J_IMG_CNT + 1):
+        solve_task_2(i, False, False)
+
+    #solve_task_2(1, False, False)
+    #solve_task_2(3, False, False)'''
