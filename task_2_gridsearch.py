@@ -187,7 +187,7 @@ def solve_task_1(img_i, identify_digits = False, show = False):
         digits = [np.zeros((chunk_l // 2, chunk_l // 2), np.uint8)]
         for i in range(1, 10):
 
-            d = cv.imread(f"digit_{i}_clasic.jpg")
+            d = cv.imread(f"digit_{i}.jpg")
             d = cv.resize(d, (chunk_l // 2, chunk_l // 2))
             d = cv.cvtColor(d, cv.COLOR_BGR2GRAY)
 
@@ -229,41 +229,41 @@ def solve_task_1(img_i, identify_digits = False, show = False):
 
                     if i == 0 and j == 6:
                         show_image(chunk)
-                        cv.imwrite("digit_5_clasic.jpg", chunk)
+                        cv.imwrite("digit_5.jpg", chunk)
 
                     if i == 0 and j == 1:
                         show_image(chunk)
-                        cv.imwrite("digit_6_clasic.jpg", chunk)
+                        cv.imwrite("digit_6.jpg", chunk)
 
                     if i == 0 and j == 2:
                         show_image(chunk)
-                        cv.imwrite("digit_8_clasic.jpg", chunk)
+                        cv.imwrite("digit_8.jpg", chunk)
 
                     if i == 1 and j == 2:
                         show_image(chunk)
-                        cv.imwrite("digit_4_clasic.jpg", chunk)
+                        cv.imwrite("digit_4.jpg", chunk)
 
                 elif  img_i == 3:
 
                     if i == 0 and j == 2:
                         show_image(chunk)
-                        cv.imwrite("digit_1_clasic.jpg", chunk)
+                        cv.imwrite("digit_1.jpg", chunk)
 
                     if i == 0 and j == 5:
                         show_image(chunk)
-                        cv.imwrite("digit_2_clasic.jpg", chunk)
+                        cv.imwrite("digit_2.jpg", chunk)
 
                     if i == 0 and j == 7:
                         show_image(chunk)
-                        cv.imwrite("digit_3_clasic.jpg", chunk)
+                        cv.imwrite("digit_3.jpg", chunk)
 
                     if i == 0 and j == 6:
                         show_image(chunk)
-                        cv.imwrite("digit_7_clasic.jpg", chunk)
+                        cv.imwrite("digit_7.jpg", chunk)
 
                     if i == 0 and j == 1:
                         show_image(chunk)
-                        cv.imwrite("digit_9_clasic.jpg", chunk)
+                        cv.imwrite("digit_9.jpg", chunk)
 
     def _without_digits():
         
@@ -398,7 +398,7 @@ def _get_border_samples():
     cv.imwrite("up_edge.jpg", upedge)
     cv.imwrite("low_edge.jpg", lowedge)
 
-def get_borders(img):
+def get_borders_p(img, border_thrsh):
 
     img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
@@ -453,7 +453,7 @@ def get_borders(img):
         #print(minval, maxval)
         
         # empirically-determined expression
-        if minval < 0.95:
+        if minval < border_thrsh:
             return True
 
         return False
@@ -466,7 +466,130 @@ def get_borders(img):
         #print(minval, maxval)
 
         # empirically-determined expression
-        if minval < 0.95:
+        if minval < border_thrsh:
+            return True
+
+        return False
+
+    # chunk_border[i][j] = [border UP, border, DOWN, border LEFT, border RIGHT]
+    chunk_border = [[[False, False, False, False] for _ in range(9)] for _ in range(9)]
+
+    for k in range(9):
+
+        chunk_border[0][k][0] = True
+        chunk_border[8][k][1] = True
+        chunk_border[k][0][2] = True
+        chunk_border[k][8][3] = True
+
+    # horizontal borders
+
+    for i in range(9 - 1):
+        for j in range(9):
+
+            off_i = i
+            off_j = j
+
+            chunk = edges[i * chunk_l + off_i + chunk_l // 2: (i + 1) * chunk_l + off_i + chunk_l // 2,
+                            j * chunk_l + off_j: (j + 1) * chunk_l + off_j]
+
+            is_border = _check_horizontal_border(chunk)
+            '''print(is_border)
+            show_image(chunk)'''
+            if is_border:
+
+                chunk_border[i][j][1] = True
+                chunk_border[i + 1][j][0] = True
+
+    # vertical borders
+
+    for i in range(9):
+        for j in range(9 - 1):
+
+            off_i = i
+            off_j = j
+
+            chunk = edges[i * chunk_l + off_i: (i + 1) * chunk_l + off_i,
+                            j * chunk_l + off_j + chunk_l // 2: (j + 1) * chunk_l + off_j + chunk_l // 2]
+
+            is_border = _check_vertical_border(chunk)
+            '''print(is_border)
+            show_image(chunk)'''
+            if is_border:
+                
+                chunk_border[i][j][3] = True
+                chunk_border[i][j + 1][2] = True
+
+    return chunk_border
+
+def get_borders(img):
+
+    img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+
+    l = img.shape[0]
+    chunk_l = l // 9
+
+    def _check_line(x1, y1, x2, y2):
+
+        d0 = abs(x1 - x2)
+        d1 = abs(y1 - y2)
+
+        if (d0 > chunk_l // 5) and (d1 > chunk_l // 5):
+            return False
+
+        return True
+       
+    image_m_blur = cv.medianBlur(img, 7)
+    image_g_blur = cv.GaussianBlur(image_m_blur, (0, 0), 11) 
+    image_sharpened = cv.addWeighted(image_m_blur, 1.5, image_g_blur, -1, 0)
+    _, thresh = cv.threshold(image_sharpened, 10, 255, cv.THRESH_BINARY)
+
+    #show_image(thresh)
+    edges =  cv.Canny(thresh, 150, 400)
+    lines = cv.HoughLinesP(image=edges, rho=1, theta=np.pi/180, threshold=25, minLineLength = 0, maxLineGap = chunk_l // 3)
+    
+    edges = np.zeros(edges.shape)
+    
+    for line in lines:
+
+        x1, y1, x2, y2 = line[0]
+
+        if _check_line(x1, y1, x2, y2):
+            cv.line(edges, (x1, y1), (x2, y2), (255, 255, 255), 3)
+
+	# Show result
+    #show_image(edges)
+    edges = edges.astype(np.uint8)
+    #show_image(edges)
+    horizontal_border = cv.imread("low_edge.jpg")
+    horizontal_border = cv.cvtColor(horizontal_border, cv.COLOR_BGR2GRAY)
+    horizontal_border = cv.resize(horizontal_border, (int(0.7 * chunk_l), int(0.6 * chunk_l)))
+
+    vertical_border = cv.imread("up_edge.jpg")
+    vertical_border = cv.cvtColor(vertical_border, cv.COLOR_BGR2GRAY)
+    vertical_border = cv.resize(vertical_border, (int(0.6 * chunk_l), int(0.7 * chunk_l)))
+    
+    def _check_horizontal_border(chunk):
+        
+        match = cv.matchTemplate(chunk, horizontal_border, cv.TM_SQDIFF_NORMED)
+        minval, maxval, _, _ = cv.minMaxLoc(match)
+
+        #print(minval, maxval)
+        
+        # empirically-determined expression
+        if minval < 0.9:
+            return True
+
+        return False
+
+    def _check_vertical_border(chunk):
+        
+        match = cv.matchTemplate(chunk, vertical_border, cv.TM_SQDIFF_NORMED)
+        minval, maxval, _, _ = cv.minMaxLoc(match)
+
+        #print(minval, maxval)
+
+        # empirically-determined expression
+        if minval < 0.9:
             return True
 
         return False
@@ -563,276 +686,111 @@ def fill_regions(chunk_borders):
 
     return region_matrix
 
-def _extract_digits():
+def check_regions(region_matrix, img_i):
 
-    def _gray():
+    fname = img_i
+    if img_i < 10:
+        fname = f"0{img_i}"
 
-        img_i = 15
+    fname = f"{fname}_gt.txt"
 
-        img = get_center(img_i, show = False, jigsaw = True)
-        show_image(img)
+    f = open(f"antrenare/jigsaw/{fname}")
+    reg_org = f.read().split()
+    f.close()
 
-        l = img.shape[0]
-        chunk_l = l // 9
+    for i in range(9):
+        reg_org[i] = [(ord(c) - ord('0')) for c in reg_org[i][::2]]
 
-        for i in range(9):
-            for j in range(9):
-        
-                chunk = img[i * chunk_l: (i + 1) * chunk_l, 
-                            j * chunk_l: (j + 1) * chunk_l, :]
-                chunk = cv.cvtColor(chunk, cv.COLOR_RGB2GRAY)
-                _, chunk = cv.threshold(chunk, 130, 255, cv.THRESH_BINARY)
+    '''for i in range(9):
+            print(region_matrix[i])
+    print()
 
-                chunk = cv.medianBlur(chunk, 3)
-                chunk = chunk[chunk_l // 6: chunk_l * 5 // 6, chunk_l // 6: chunk_l * 5 // 6]
-                
-                if img_i == 4:
+    for i in range(9):
+        print(reg_org[i])'''
 
-                    if i == 1 and j == 1:
-                        show_image(chunk)
-                        cv.imwrite("digit_1_jgray.jpg", chunk)
+    for i in range(9):
+        for j in range(9):
 
-                    if i == 0 and j == 8:
-                        show_image(chunk)
-                        cv.imwrite("digit_2_jgray.jpg", chunk)
+            if reg_org[i][j] != region_matrix[i][j]:
+                return False
 
-                    if i == 1 and j == 0:
-                        show_image(chunk)
-                        cv.imwrite("digit_9_jgray.jpg", chunk)
+    return True
 
-                    if i == 1 and j == 8:
-                        show_image(chunk)
-                        cv.imwrite("digit_6_jgray.jpg", chunk)
+def check_regions_p(region_matrix, reg_org):
 
-                elif img_i == 15:
+    for i in range(9):
+        reg_org[i] = [(ord(c) - ord('0')) for c in reg_org[i][::2]]
 
-                    if i == 0 and j == 1:
-                        show_image(chunk)
-                        cv.imwrite("digit_3_jgray.jpg", chunk)
+    for i in range(9):
+        for j in range(9):
 
-                    if i == 1 and j == 3:
-                        show_image(chunk)
-                        cv.imwrite("digit_4_jgray.jpg", chunk)
+            if reg_org[i][j] != region_matrix[i][j]:
+                return False
 
-                    if i == 1 and j == 0:
-                        show_image(chunk)
-                        cv.imwrite("digit_5_jgray.jpg", chunk)
-
-                    if i == 1 and j == 4:
-                        show_image(chunk)
-                        cv.imwrite("digit_7_jgray.jpg", chunk)
-
-                    if i == 1 and j == 2:
-                        show_image(chunk)
-                        cv.imwrite("digit_8_jgray.jpg", chunk)
-
-    def _color():
-
-        img_i = 23
-
-        img = get_center(img_i, show = False, jigsaw = True)
-        show_image(img)
-        
-        l = img.shape[0]
-        chunk_l = l // 9
-
-        for i in range(9):
-            for j in range(9):
-        
-                chunk = img[i * chunk_l: (i + 1) * chunk_l, 
-                            j * chunk_l: (j + 1) * chunk_l, :]
-                chunk = cv.cvtColor(chunk, cv.COLOR_RGB2GRAY)
-                _, chunk = cv.threshold(chunk, 130, 255, cv.THRESH_BINARY)
-
-                chunk = cv.medianBlur(chunk, 3)
-                chunk = chunk[chunk_l // 4: chunk_l * 3 // 4, chunk_l // 4: chunk_l * 3 // 4]
-                
-                if img_i == 23:
-
-                    if i == 0 and j == 1:
-                        show_image(chunk)
-                        cv.imwrite("digit_8_jcolor.jpg", chunk)
-
-                    if i == 0 and j == 6:
-                        show_image(chunk)
-                        cv.imwrite("digit_7_jcolor.jpg", chunk)
-
-                elif img_i == 32:
-
-                    if i == 0 and j == 1:
-                        show_image(chunk)
-                        cv.imwrite("digit_6_jcolor.jpg", chunk)
-
-                    if i == 0 and j == 4:
-                        show_image(chunk)
-                        cv.imwrite("digit_1_jcolor.jpg", chunk)
-
-                elif img_i == 40:
-
-                    if i == 0 and j == 3:
-                        show_image(chunk)
-                        cv.imwrite("digit_3_jcolor.jpg", chunk)
-
-                    if i == 0 and j == 4:
-                        show_image(chunk)
-                        cv.imwrite("digit_2_jcolor.jpg", chunk)
-
-                    if i == 0 and j == 6:
-                        show_image(chunk)
-                        cv.imwrite("digit_5_jcolor.jpg", chunk)
-
-                    if i == 0 and j == 7:
-                        show_image(chunk)
-                        cv.imwrite("digit_9_jcolor.jpg", chunk)
-
-                elif img_i == 31:
-
-                    if i == 0 and j == 6:
-                        show_image(chunk)
-                        cv.imwrite("digit_4_jcolor.jpg", chunk)
-
-    #_gray()
-    _color()
-
-def get_symbols(img, identify_digits = False, show = False):
-
-    l = img.shape[0]
-    chunk_l = l // 9
-
-    empty = np.full((int(chunk_l * 0.7), int(chunk_l * 0.7)), np.uint8(255))
-
-    def _j_type(p):
-
-        j_type = "color"
-        ps = [int(p[0]), int(p[1]), int(p[2])]
-        ps.sort()
-
-        if ps[1] - ps[0] < 7 and ps[2] - ps[0] < 7 and ps[2] - ps[1]  < 7:
-            j_type = "gray"
-
-        return j_type
-
-    j_type = _j_type(img[chunk_l // 4, chunk_l // 4])
-        
-    def _is_empty(ch):
-
-        # checks whether there is a contiguous "only-white" portion in the iamge
-        # of (3/4, 2/4) of the chunk size
-        # with a small error margin determined by grid search
-
-        TOLERATED_ERR = 0.003
-
-        match = cv.matchTemplate(ch, empty, cv.TM_SQDIFF_NORMED)
-        minval, _, _, _ = cv.minMaxLoc(match)
-
-        if minval < TOLERATED_ERR:
-            return True
-
-        return False
-
-    def _with_digits(): 
-
-        res = [["o" for _ in range(9)] for _ in range(9)]
-
-        def _get_co(ch, template):
-
-            match = cv.matchTemplate(ch, template, cv.TM_CCOEFF_NORMED)
-            _, maxval, _, _ = cv.minMaxLoc(match)
-
-            return maxval
-
-        digits = [np.zeros((chunk_l // 2, chunk_l // 2), np.uint8)]
-        for i in range(1, 10):
-
-            d = cv.imread(f"digit_{i}_j{j_type}.jpg")
-
-            if j_type == "color":
-                d = cv.resize(d, (chunk_l // 2, chunk_l // 2))
-            else:
-                d = cv.resize(d, (chunk_l * 2 // 3, chunk_l * 2 // 3))
-
-            d = cv.cvtColor(d, cv.COLOR_BGR2GRAY)
-
-            digits.append(d)
-
-        for i in range(9):
-            for j in range(9):
-
-                off = i
-
-                chunk = img[i * chunk_l + off: (i + 1) * chunk_l + off, 
-                            j * chunk_l: (j + 1) * chunk_l, :]
-                chunk = cv.cvtColor(chunk, cv.COLOR_RGB2GRAY)
-                _, chunk = cv.threshold(chunk, 120, 255, cv.THRESH_BINARY)
-                
-                chunk = cv.medianBlur(chunk, 3)
-
-                if _is_empty(chunk):
-                    continue
-
-                res[i][j] = chr(np.argmax([-1000000] + [_get_co(chunk, d) for d in digits[1:]]) + ord('0'))
-
-                '''print(res[i][j])
-                if j_type == "color":
-                    show_image(chunk)'''
-
-        return res
-
-    def _without_digits():
-        
-        res = [["o" for _ in range(9)] for _ in range(9)]
-
-        for i in range(9):
-            for j in range(9):
-
-                off = i
-
-                chunk = img[i * chunk_l + off: (i + 1) * chunk_l + off, 
-                            j * chunk_l: (j + 1) * chunk_l, :]
-                chunk = cv.cvtColor(chunk, cv.COLOR_RGB2GRAY)
-                _, chunk = cv.threshold(chunk, 120, 255, cv.THRESH_BINARY)
-
-                chunk = cv.medianBlur(chunk, 3)
-                '''print(_is_empty(chunk))
-                show_image(chunk)'''
-                if _is_empty(chunk):
-                    continue
-
-                res[i][j] = "x"
-
-        return res
-
-    if identify_digits:
-        return _with_digits()
-    else:
-        return _without_digits()
+    return True
 
 def solve_task_2(img_i, identify_digits = False, show = False):
 
     img = get_center(img_i, show = show, jigsaw = True)
 
     region_matrix = fill_regions(get_borders(img))
-    symbol_matrix = get_symbols(img, identify_digits, show)
 
-    return None
+    check = check_regions(region_matrix, img_i)
+    return check
+
+def solve_task_2_p(img, img_org, identify_digits = False, show = False, border_thrhs = None):
+
+    region_matrix = fill_regions(get_borders_p(img, border_thrhs))
+
+    check = check_regions_p(region_matrix, img_org)
+    return check
 
 def check_task_2():
 
-    def _cmp_m(fst, snd):
-
-        for i in range(9):
-            for j in range(9):
-                
-                if snd[i][j] != fst[i][j]:
-                    return False
-
-        return True
-
     okcnt = 0
-    okcnt_d = 0
 
     J_IMG_CNT = 40
     for i in range(1, J_IMG_CNT + 1):
+        
+        ok = solve_task_2(i, False, False)
+        if ok:
+            okcnt += 1
+
+        else:
+            #print(i)
+            pass
+
+    print(okcnt)
+
+def task2_girdsearch():
+
+    g = open("gridsearch_3.txt", "w+")
+
+    hyperparam_val =    {
+                        "border_thrhs": [0.7, 0.8, 0.82, 0.85, 0.89, 0.9, 0.91, 0.93, 0.95, 0.96, 0.97]
+                        }
+    hyperparam_names = [name for name in hyperparam_val.keys()]
+
+    def _get_hyperparam_seq(params):
+
+        if len(params) == 0:
+            yield {}
+        
+        else:
+
+            for val in hyperparam_val[params[0]]:
+                for seq in _get_hyperparam_seq(params[1:]):
+
+                    to_yield = {params[0]: val} 
+                    to_yield.update(seq.copy())
+
+                    yield to_yield
+
+    imgs = [None]
+    img_org = [None]
+
+    IMG_CNT = 40
+    for i in range(1, IMG_CNT + 1):
 
         fname = i
         if i < 10:
@@ -844,60 +802,49 @@ def check_task_2():
         reg_org = f.read().split()
         f.close()
 
-        fname = i
-        if i < 10:
-            fname = f"0{i}"
+        img_org.append(reg_org)
+        imgs.append(get_center(i, False, True))
 
-        fname = f"{fname}_bonus_gt.txt"
+    for hyperparams in _get_hyperparam_seq(hyperparam_names):
 
-        f = open(f"antrenare/jigsaw/{fname}")
-        reg_org_digits = f.read().split()
-        f.close()
+        ok, ok_digit = 0, 0
 
-        reg_org_matrix = [[0 for _ in range(9)] for _ in range(9)]
-        for j in range(9):
-            reg_org_matrix[j] = [(ord(c) - ord('0')) for c in reg_org[j][::2]]
+        for i in range(1, IMG_CNT + 1):
 
-        sym_org_matrix = [[0 for _ in range(9)] for _ in range(9)]
-        for j in range(9):
-            sym_org_matrix[j] = [c for c in reg_org[j][1::2]]
+            ok_ = solve_task_2_p(imgs[i], img_org[i].copy(), False, False, **hyperparams)
+            if ok_:
+                ok += 1
 
-        sym_org_digits_matrix = [[0 for _ in range(9)] for _ in range(9)]
-        for j in range(9):
-            sym_org_digits_matrix[j] = [c for c in reg_org_digits[j][1::2]]
-        
-        img = get_center(i, show = False, jigsaw = True)
+        print(f"{hyperparams} - ok: {ok} / 40")
+        print(f"{hyperparams} - ok_d: {ok_digit} / 40") 
 
-        region_matrix = fill_regions(get_borders(img))
-        symbol_matrix = get_symbols(img, False, False)
-        symbol_digits_matrix = get_symbols(img, True, False)
-        
-        check = _cmp_m(reg_org_matrix, region_matrix)
-        check_d = check
+        print(f"{hyperparams} - ok: {ok} / 40", file = g)
+        print(f"{hyperparams} - ok_d: {ok_digit} / 40", file = g)         
 
-        check &= _cmp_m(sym_org_matrix, symbol_matrix)
-        check_d &= _cmp_m(sym_org_digits_matrix, symbol_digits_matrix)
-        
-        if check:
-            okcnt += 1
-
-        if check_d:
-            okcnt_d += 1
-
-    print(f"without digits: {okcnt} / 40")
-    print(f"with digits: {okcnt_d} / 40")
+    g.flush()
+    g.close()
 
 if __name__ == "__main__":
     
-    #check_task_1()
+    '''IMG_CNT = 20
+    for i in range(1, IMG_CNT + 1):
+
+        m = solve_task_1(i, False, False)
+        m_d = solve_task_1(i, True, False)
+
+        save_mat_s1(i, m, False)
+        save_mat_s1(i, m_d, True)
+
+    check_task_1()'''
 
     '''J_IMG_CNT = 40
     for i in range(1, J_IMG_CNT + 1):
         solve_task_2(i, False, False)'''
 
-    #_get_border_samples()
+    _get_border_samples()
 
-    #_extract_digits()
-    check_task_2()
+    #check_task_2()
 
-    #solve_task_2(31, False, False)
+    #print(solve_task_2(3, False, False))
+
+    task2_girdsearch()

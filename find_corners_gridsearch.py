@@ -119,7 +119,7 @@ def gridsearch():
 
                     yield to_yield
 
-    ERR_SQUARE = 0.1
+    ERR_SQUARE = 0.09
 
     imgs = []
 
