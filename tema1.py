@@ -567,64 +567,68 @@ def _extract_digits():
 
     def _gray():
 
-        img_i = 15
+        for img_i in [14, 37, 4, 15]:
 
-        img = get_center(img_i, show = False, jigsaw = True)
-        show_image(img)
+            img = get_center(img_i, show = False, jigsaw = True)
+            show_image(img)
 
-        l = img.shape[0]
-        chunk_l = l // 9
+            l = img.shape[0]
+            chunk_l = l // 9
 
-        for i in range(9):
-            for j in range(9):
-        
-                chunk = img[i * chunk_l: (i + 1) * chunk_l, 
-                            j * chunk_l: (j + 1) * chunk_l, :]
-                chunk = cv.cvtColor(chunk, cv.COLOR_RGB2GRAY)
-                _, chunk = cv.threshold(chunk, 130, 255, cv.THRESH_BINARY)
+            for i in range(9):
+                for j in range(9):
+            
+                    chunk = img[i * chunk_l: (i + 1) * chunk_l, 
+                                j * chunk_l: (j + 1) * chunk_l, :]
+                    chunk = cv.cvtColor(chunk, cv.COLOR_RGB2GRAY)
+                    _, chunk = cv.threshold(chunk, 130, 255, cv.THRESH_BINARY)
 
-                chunk = cv.medianBlur(chunk, 3)
-                chunk = chunk[chunk_l // 6: chunk_l * 5 // 6, chunk_l // 6: chunk_l * 5 // 6]
-                
-                if img_i == 4:
+                    chunk = cv.medianBlur(chunk, 3)
+                    chunk = chunk[chunk_l // 5: chunk_l * 4 // 5, chunk_l // 5: chunk_l * 4 // 5]
+                    
+                    if img_i == 4:
 
-                    if i == 1 and j == 1:
-                        show_image(chunk)
-                        cv.imwrite("digit_1_jgray.jpg", chunk)
+                        if i == 1 and j == 1:
+                            show_image(chunk)
+                            cv.imwrite("digit_1_jgray.jpg", chunk)
 
-                    if i == 0 and j == 8:
-                        show_image(chunk)
-                        cv.imwrite("digit_2_jgray.jpg", chunk)
+                        if i == 1 and j == 0:
+                            show_image(chunk)
+                            cv.imwrite("digit_9_jgray.jpg", chunk)
 
-                    if i == 1 and j == 0:
-                        show_image(chunk)
-                        cv.imwrite("digit_9_jgray.jpg", chunk)
+                        if i == 8 and j == 0:
+                            show_image(chunk)
+                            cv.imwrite("digit_6_jgray.jpg", chunk)
 
-                    if i == 1 and j == 8:
-                        show_image(chunk)
-                        cv.imwrite("digit_6_jgray.jpg", chunk)
+                    elif img_i == 15:
 
-                elif img_i == 15:
+                        if i == 1 and j == 3:
+                            show_image(chunk)
+                            cv.imwrite("digit_4_jgray.jpg", chunk)
 
-                    if i == 0 and j == 1:
-                        show_image(chunk)
-                        cv.imwrite("digit_3_jgray.jpg", chunk)
+                        if i == 1 and j == 0:
+                            show_image(chunk)
+                            cv.imwrite("digit_5_jgray.jpg", chunk)
 
-                    if i == 1 and j == 3:
-                        show_image(chunk)
-                        cv.imwrite("digit_4_jgray.jpg", chunk)
+                        if i == 1 and j == 4:
+                            show_image(chunk)
+                            cv.imwrite("digit_7_jgray.jpg", chunk)
 
-                    if i == 1 and j == 0:
-                        show_image(chunk)
-                        cv.imwrite("digit_5_jgray.jpg", chunk)
+                        if i == 1 and j == 2:
+                            show_image(chunk)
+                            cv.imwrite("digit_8_jgray.jpg", chunk)
 
-                    if i == 1 and j == 4:
-                        show_image(chunk)
-                        cv.imwrite("digit_7_jgray.jpg", chunk)
+                    elif img_i == 37:
 
-                    if i == 1 and j == 2:
-                        show_image(chunk)
-                        cv.imwrite("digit_8_jgray.jpg", chunk)
+                        if i == 1 and j == 3:
+                            show_image(chunk)
+                            cv.imwrite("digit_2_jgray.jpg", chunk)
+
+                    elif img_i == 14:
+
+                        if i == 7 and j == 2:
+                            show_image(chunk)
+                            cv.imwrite("digit_3_jgray.jpg", chunk)
 
     def _color():
 
@@ -691,8 +695,8 @@ def _extract_digits():
                         show_image(chunk)
                         cv.imwrite("digit_4_jcolor.jpg", chunk)
 
-    #_gray()
-    _color()
+    _gray()
+    #_color()
 
 def get_symbols(img, identify_digits = False, show = False):
 
@@ -749,7 +753,7 @@ def get_symbols(img, identify_digits = False, show = False):
             if j_type == "color":
                 d = cv.resize(d, (chunk_l // 2, chunk_l // 2))
             else:
-                d = cv.resize(d, (chunk_l * 2 // 3, chunk_l * 2 // 3))
+                d = cv.resize(d, (chunk_l * 3 // 5, chunk_l * 3 // 5))
 
             d = cv.cvtColor(d, cv.COLOR_BGR2GRAY)
 
@@ -771,10 +775,6 @@ def get_symbols(img, identify_digits = False, show = False):
                     continue
 
                 res[i][j] = chr(np.argmax([-1000000] + [_get_co(chunk, d) for d in digits[1:]]) + ord('0'))
-
-                '''print(res[i][j])
-                if j_type == "color":
-                    show_image(chunk)'''
 
         return res
 
@@ -803,9 +803,9 @@ def get_symbols(img, identify_digits = False, show = False):
         return res
 
     if identify_digits:
-        return _with_digits()
+        return _with_digits(), j_type
     else:
-        return _without_digits()
+        return _without_digits(), j_type
 
 def solve_task_2(img_i, identify_digits = False, show = False):
 
@@ -824,6 +824,7 @@ def check_task_2():
             for j in range(9):
                 
                 if snd[i][j] != fst[i][j]:
+                    print(fst[i][j], snd[i][j], i, j)
                     return False
 
         return True
@@ -869,14 +870,17 @@ def check_task_2():
         img = get_center(i, show = False, jigsaw = True)
 
         region_matrix = fill_regions(get_borders(img))
-        symbol_matrix = get_symbols(img, False, False)
-        symbol_digits_matrix = get_symbols(img, True, False)
+        symbol_matrix, _ = get_symbols(img, False, False)
+        symbol_digits_matrix, j_type = get_symbols(img, True, False)
         
         check = _cmp_m(reg_org_matrix, region_matrix)
         check_d = check
 
         check &= _cmp_m(sym_org_matrix, symbol_matrix)
         check_d &= _cmp_m(sym_org_digits_matrix, symbol_digits_matrix)
+
+        if check_d is False:
+            print(j_type, i)
         
         if check:
             okcnt += 1
@@ -897,7 +901,7 @@ if __name__ == "__main__":
 
     #_get_border_samples()
 
-    #_extract_digits()
+    _extract_digits()
     check_task_2()
 
     #solve_task_2(31, False, False)
