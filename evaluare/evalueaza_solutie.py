@@ -6,8 +6,8 @@ from math import sqrt
 
 # toate path-urile folosite (format linux)
 
-DATA_PATH_CLASIC = "../testare/clasic/"
-DATA_PATH_JIGSAW = "../testare/jigsaw/"
+DATA_PATH_CLASIC = "../test/clasic/"
+DATA_PATH_JIGSAW = "../test/jigsaw/"
 PREDICTION_PATH_CLASIC = "../fisiere_solutie/Stanciu_Calin_331/clasic/"
 PREDICTION_PATH_JIGSAW = "../fisiere_solutie/Stanciu_Calin_331/jigsaw/"
 TEMPLATE_PATH = "templates/"
@@ -504,133 +504,6 @@ def solve_task_2(img_i, identify_digits = False):
         save_solution(img_i, res_matrix, digits = False, jigsaw = True)
 
 # --------------
-
-# TODO remove from final version - tests only
-'''def check_task_1():
-
-    def _cmp_m(fst, snd):
-
-        for i in range(9):
-            for j in range(9):
-                
-                if snd[i][j] != fst[i][j]:
-                    return False
-
-        return True
-
-    ok = 0
-    ok_digit = 0
-
-    IMG_CNT = 20
-    for i in range(1, IMG_CNT + 1):
-
-        solname_ = i
-        if i < 10:
-            solname_ = f"0{i}"
-
-        solname_d = f"{DATA_PATH_CLASIC}{solname_}_bonus_gt.txt"
-        solname = f"{DATA_PATH_CLASIC}{solname_}_gt.txt"
-
-        solname_my = f"{PREDICTION_PATH_CLASIC}{i}_predicted.txt"
-        solname_d_my = f"{PREDICTION_PATH_CLASIC}{i}_bonus_predicted.txt"
-
-        f_res = open(solname_my)
-        f_org = open(solname)
-        f_res_d = open(solname_d_my)
-        f_org_d = open(solname_d)
-
-        res = f_res.read().split()
-        org = f_org.read().split()
-        res_d = f_res_d.read().split()
-        org_d = f_org_d.read().split()
-
-        f_res.close()
-        f_org.close()
-        f_res_d.close()
-        f_org_d.close()
-
-        if _cmp_m(res, org) is True:
-            ok += 1
-
-        if _cmp_m(res_d, org_d) is True:
-            ok_digit += 1
-
-    print(f"recunoastere fara cifre: {ok} / 20")
-    print(f"recunoastere cu cifre: {ok_digit} / 20")
-
-    return ok, ok_digit
-
-def check_task_2():
-
-    def _cmp_m(fst, snd):
-
-        for i in range(9):
-            for j in range(9):
-                
-                if snd[i][j] != fst[i][j]:
-                    return False
-
-        return True
-
-    okcnt = 0
-    okcnt_d = 0
-
-    J_IMG_CNT = 40
-    for i in range(1, J_IMG_CNT + 1):
-
-        fname = i
-        if i < 10:
-            fname = f"0{i}"
-
-        fname = f"{fname}_gt.txt"
-
-        f = open(f"{DATA_PATH_JIGSAW}{fname}")
-        reg_org = f.read().split()
-        f.close()
-
-        fname = i
-        if i < 10:
-            fname = f"0{i}"
-
-        fname = f"{fname}_bonus_gt.txt"
-
-        f = open(f"{DATA_PATH_JIGSAW}{fname}")
-        reg_org_digits = f.read().split()
-        f.close()
-
-        reg_org_matrix = [[0 for _ in range(9)] for _ in range(9)]
-        for j in range(9):
-            reg_org_matrix[j] = [(ord(c) - ord('0')) for c in reg_org[j][::2]]
-
-        sym_org_matrix = [[0 for _ in range(9)] for _ in range(9)]
-        for j in range(9):
-            sym_org_matrix[j] = [c for c in reg_org[j][1::2]]
-
-        sym_org_digits_matrix = [[0 for _ in range(9)] for _ in range(9)]
-        for j in range(9):
-            sym_org_digits_matrix[j] = [c for c in reg_org_digits[j][1::2]]
-        
-        img = get_center(i, jigsaw = True)
-
-        region_matrix = fill_regions(get_borders(img))
-        symbol_matrix = get_symbols(img, False)
-        symbol_digits_matrix = get_symbols(img, True)
-        
-        check = _cmp_m(reg_org_matrix, region_matrix)
-        check_d = check
-
-        check &= _cmp_m(sym_org_matrix, symbol_matrix)
-        check_d &= _cmp_m(sym_org_digits_matrix, symbol_digits_matrix)
-        
-        if check:
-            okcnt += 1
-
-        if check_d:
-            okcnt_d += 1
-
-    print(f"without digits: {okcnt} / 40")
-    print(f"with digits: {okcnt_d} / 40")
-'''
 
 if __name__ == "__main__":
 
